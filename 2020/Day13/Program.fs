@@ -36,7 +36,6 @@ let rec find2 i (ns:(int64*int64) array) step t =
         |false -> 
             //Om någon stämmer, så vet vi att svaret är en multipel av lcm(step, bussen)
             // Eftersom bussen är ett primtal
-            // Fler och fler kommer stämma, så vi tar max
             let step : int64 = 
                 succ
                 |> Array.fold (fun step (v,ok) -> if ok then max step (lcm step v) else step ) step
