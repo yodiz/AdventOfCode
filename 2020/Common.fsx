@@ -19,6 +19,10 @@ let (|Int64|_|) = Parse.tryInt64
 module Array = 
     let foldi<'state,'a> folder (s:'state) (arr:'a array) =
         arr|> Array.fold (fun (i,s) x -> (i+1),folder i s x) (0,s) |> snd
+module List = 
+    let foldi<'state,'a> folder (s:'state) (arr:'a list) =
+        arr|> List.fold (fun (i,s) x -> (i+1),folder i s x) (0,s) |> snd
+
 
 module Map = 
     ///Change existing value or use default value 
