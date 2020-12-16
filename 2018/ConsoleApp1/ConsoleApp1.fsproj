@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="advent15_2.fsx" />
+    <None Include="Advent15.fsx" />
+    <None Include="Advent14.fsx" />
+    <None Include="advent13.fsx" />
+    <Content Include="advent13.txt" />
+    <None Include="Advent12.fsx" />
+    <None Include="advent11.fsx" />
+    <Content Include="input10.txt" />
+    <None Include="advent10.fsx" />
+    <Content Include="input9.txt" />
+    <None Include="advent9.fsx" />
+    <Content Include="input8.txt" />
+    <Content Include="input7.txt" />
+    <Content Include="input5.txt" />
+    <Content Include="input4.txt" />
+    <Content Include="input3.txt" />
+    <Content Include="input2.txt" />
+    <None Include="advent1.fsx" />
+    <Content Include="input1.txt" />
+    <Content Include="input6.txt" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+</Project>
