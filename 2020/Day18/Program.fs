@@ -8,10 +8,6 @@ type Op = |Add|Mult
 type AST = 
     |Val of int64
     |Op of (AST*Op option) list
-
-type Expr = 
-    |Val of int64
-    |Op of (Expr*Expr*Op)
     
 let rec getNext op i (exp:string) (res:string) =
     if i = exp.Length then -1,(res.Trim()), None
@@ -44,43 +40,22 @@ let rec eval (exp:string) =
             
         AST.Op a
 
-let rec reduce (e:AST) = 
-    match e with 
-    |AST.Val a -> AST.Val a
-    |AST.Op op -> 
-        op
-        |> List.fold (fun (op,s) (x,nop) -> 
-                        nop |> Option.defaultValue Op.Add,
-                        AST.Op [s,Some op; (reduce x), None]
-                     ) 
-                     (Op.Add, AST.Val (0L))
-        |> snd
-
 let defOp = Option.defaultValue Op.Add
 
-let rec red isop todo don =
+let rec reduceOp isop todo don =
     match todo with 
     |[] -> don |> List.rev
-    |(a, aop) :: (b, bop) :: [] when isop (defOp aop) -> 
-        let q = AST.Op [reduce2 isop a, aop; reduce2 isop b, None]
-        //printfn "MATCH"
-        red isop [] ((q,bop)::don)
     |(a, aop) :: (b, bop) :: rest when isop (defOp aop) -> 
-        let q = AST.Op [reduce2 isop a, aop; reduce2 isop b, None]
-        //printfn "MATCH"
-        red isop ((q,bop)::rest) (don)
+        let q = AST.Op [reduce isop a, aop; reduce isop b, None]
+        match rest with 
+        |[] -> reduceOp isop rest ((q,bop)::don)
+        |rest -> reduceOp isop ((q,bop)::rest) don
     |(a, aop) :: rest ->
-        //printfn "NOT"
-        red isop rest ((reduce2 isop a, aop)::don)
+        reduceOp isop rest ((reduce isop a, aop)::don)
 
-and reduce2 isop (e:AST) = 
-    //printfn "%A" e
+and reduce isop (e:AST) = 
     match e with 
-    |AST.Val a -> e
-    |AST.Op (a::b::[]) -> AST.Op (red isop [a;b] [])
-    |AST.Op (a::[]) -> AST.Op (red isop [a] [])
-    |AST.Op op -> (AST.Op (red isop op []))
-
+    |AST.Val a -> e |AST.Op op -> (AST.Op (reduceOp isop op []))
 
 let rec solve (e:AST) = 
     match e with 
@@ -98,26 +73,22 @@ let rec solve (e:AST) =
 
 let part1 = 
     load "Day18/input.txt"
-    |> Array.fold (fun s x -> eval x |> reduce |> solve |> (fun x -> x+s)) 0L
-
-let part1_2 = 
-    load "Day18/input.txt"
-    |> Array.fold (fun s x -> printfn "%s" x; eval x |> reduce2 (fun _ -> true) |> solve |> (fun x -> x+s)) 0L
+    |> Array.fold (fun s x -> eval x |> reduce (fun _ -> true) |> solve |> (fun x -> x+s)) 0L
 
 let part2 = 
     load "Day18/input.txt"
     |> Array.fold (fun s x -> 
-                        printfn "%s" x
                         eval x 
-                        |> reduce2 (function |Op.Add -> true |_ -> false) 
-                        |> reduce2 (function |Op.Mult -> true |_ -> false) 
+                        |> reduce (function |Op.Add -> true |_ -> false) 
+                        |> reduce (function |Op.Mult -> true |_ -> false) 
                         |> solve |> (fun x -> x+s)) 0L
 
 
-//let a = eval "4 + (9 * (8 + 9 + 7 + 5 + 2) * (4 + 3 + 2 + 9 + 5 * 7)) * 2"
-//let b = reduce2 (function |Op.Add -> true |_ -> false)  a
-//let c = solve b
+let a = eval "4 + (9 * (8 + 9 + 7 + 5 + 2) * (4 + 3 + 2 + 9 + 5 * 7)) * 2"
+let b = reduce (function |Op.Add -> true |_ -> false)  a
+let c = reduce (function |Op.Mult -> true |_ -> false) b
+let d = solve c
 
 
-let a = eval "6 * 8"
+//let a = eval "6 * 8"
 //let b = reduce2 (fun _ -> true) a
