@@ -1,7 +1,7 @@
 ﻿#if INTERACTIVE
 #load "../Common.fsx"
-#else
-module Dayx
+#else 
+module Day3
 #endif
 
 open System
@@ -17,3 +17,4 @@ let input  = load folder "input.txt" |> Array.map parseLine
 let part1 = 0
 
 let part2 = 0
+

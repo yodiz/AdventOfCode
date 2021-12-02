@@ -1,6 +1,9 @@
 ﻿#if INTERACTIVE
 #load "../Common.fsx"
+#else 
+module Day1
 #endif
+
 
 //START: 08:11 - 08:16 - 8:23 - inklusive påklädning av barn
 
@@ -24,7 +27,7 @@ let part2 =
     |> Array.map Array.sum
     |> countDec
 
-[<EntryPoint>]
+//[<EntryPoint>]
 let main argv =
     printfn "Part1: %i" part1
     printfn "Part2: %i" part2
