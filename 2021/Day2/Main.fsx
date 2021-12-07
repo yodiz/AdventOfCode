@@ -43,11 +43,3 @@ let part2 =
         )
         { Depth = 0; Forward = 0; Aim = 0 }
     |> fun x -> x.Depth * x.Forward
-
-
-
-//[<EntryPoint>]
-let main argv =
-    printfn "Part1: %A" part1
-    printfn "Part2: %i" part2
-    0

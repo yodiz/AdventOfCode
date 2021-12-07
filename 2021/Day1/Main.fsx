@@ -26,9 +26,3 @@ let part2 =
     |> Array.windowed 3
     |> Array.map Array.sum
     |> countDec
-
-//[<EntryPoint>]
-let main argv =
-    printfn "Part1: %i" part1
-    printfn "Part2: %i" part2
-    0

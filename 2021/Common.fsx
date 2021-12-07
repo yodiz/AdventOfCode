@@ -53,6 +53,7 @@ module Text =
     let splitm (sepBy:string array) (str:string)  =
        str.Split(sepBy, System.StringSplitOptions.None)
 
+    let split_noempty (sepBy:string) (str:string)  = splitm_noempty [|sepBy|] str 
     let split (sepBy:string) (str:string)  = splitm [|sepBy|] str 
 
     let split2 sepBy string = 

@@ -7,7 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="**\*.fsx" />
+    <Compile Include="Common.fsx" />
+    <Compile Include="Day*\*.fsx" />
+    <None Include="Day*\*.*" />
 	 <Compile Include="Program.fs" />
   </ItemGroup>
 
