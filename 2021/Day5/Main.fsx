@@ -20,12 +20,9 @@ let expandLine allowDiagonal (a:C) (b:C)  =
                     yield { X = x; Y = y }
         |]
     else
-        if allowDiagonal then
-            let minX = min a.X b.X
-            let maxX = max a.X b.X
-        
+        if allowDiagonal then        
             [|
-                for i = 0 to (maxX - minX) do
+                for i = 0 to (max a.X b.X - min a.X b.X) do
                     let xt = if b.X > a.X then 1 else -1
                     let yt = if b.Y > a.Y then 1 else -1
                     yield { X = a.X + (i * xt); Y =  a.Y + (i * yt)} 
