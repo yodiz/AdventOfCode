@@ -56,3 +56,6 @@ let countCrosses input expandFn =
 
 let part1 = countCrosses input (expandLine false) //7674
 let part2 = countCrosses input (expandLine true)  //20898
+
+
+"   ".Split(' ')

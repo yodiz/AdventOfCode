@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <WarnOn>3390;$(WarnOn)</WarnOn>
+    <ProjectGuid>{15fd1736-8453-4801-a233-e5d947448768}</ProjectGuid>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Common.fsx" />
+    <None Include="input.txt" />
+    <None Include="test1.txt" />
+    <Compile Include="Main.fsx" />
+  </ItemGroup>
+</Project>

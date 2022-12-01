@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <WarnOn>3390;$(WarnOn)</WarnOn>
+    <ProjectGuid>{5397ffcc-68f5-4926-a044-d013cebc42cc}</ProjectGuid>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Common.fsx" />
+    
+    <Compile Include="Day1\Main.fsx" />
+    <None Include="Day1\*.txt" />
+    
+    <Compile Include="Day2\Main.fsx" />
+    <None Include="Day2\*.txt" />
+    
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+</Project>
