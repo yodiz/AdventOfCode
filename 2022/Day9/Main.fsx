@@ -10,7 +10,8 @@ open AoC
 let folder = __SOURCE_DIRECTORY__ + "\\"
 
 let parseLine (str:string) = 
-    ()
+    let d, s = AoC.Text.split2 " " str
+    d,Parse.int32 s
 
 let input  = load folder "input.txt" |> Array.map parseLine
 
