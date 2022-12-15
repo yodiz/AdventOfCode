@@ -62,6 +62,7 @@ module Text =
         |a -> failwithf "Expected two elements in '%s' Sep By '%s', but got %A"  string sepBy a
 
     let trim (s:string) = s.Trim()
+    let trimc (c:char array) (s:string) = s.Trim(c)
 
 module Regexp = 
     open System.Text.RegularExpressions
