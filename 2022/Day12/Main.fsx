@@ -33,14 +33,14 @@ let dijkstra<'a when 'a : comparison> (graph:Graph<'a>) (source:Vertex<'a>) (sto
     let prev = System.Collections.Generic.Dictionary()
     let mutable Q = Set.empty
     for v in graph.Vertices do
-        dist[v] <- 2000
+        dist[v] <- None // Infinity
         prev[v] <- None
         Q <- Q |> Set.add v 
 
-    dist[source] <- 0
+    dist[source] <- Some 0
 
     while Q |> Set.isEmpty |> not do
-        let u = Q |> Set.toSeq |> Seq.minBy (fun v -> dist[v])
+        let u = Q |> Set.toArray |> Array.minBy (fun v -> dist[v] |> Option.defaultValue System.Int32.MaxValue) 
         Q <- Q |> Set.remove u
         
         match stopAt with 
@@ -54,10 +54,13 @@ let dijkstra<'a when 'a : comparison> (graph:Graph<'a>) (source:Vertex<'a>) (sto
                         |> List.filter (fun x -> Q |> Set.contains x)
 
         for v in neighbors do
-            let alt = dist[u] + 1 //Graph.edges u v graph
-            if alt < dist[v] then
-                dist[v] <- alt
-                prev[v] <- Some u
+            match dist[u] with 
+            |None -> ()
+            |Some d -> 
+                let alt = d + 1 //1 is distance, calc ut?
+                if Some alt < dist[v] || dist[v] = None then
+                    dist[v] <- Some alt
+                    prev[v] <- Some u
             ()
 
     dist,prev
@@ -135,21 +138,15 @@ let calc2 filename =
         |> Array.mapi 
             (fun i (x,y) -> 
                 let d = dist[vertex (x,y)]
-                printfn "Calc %i of %i (%i,%i) = %i" i a.Length x y d
+                printfn "Calc %i of %i (%i,%i) = %A" i a.Length x y d
                 d
             )
+        |> Array.choose id
         |> Array.min
     xx
 
-let test1 = AoC.Test.equal "Test1" 31 (calc "test1.txt")
+let test1 = AoC.Test.equal "Test1" (Some 31) (calc "test1.txt")
 let test2 = AoC.Test.equal "Test2" 29 (calc2 "test1.txt")
 
 let part1 = calc "input.txt"
 let part2 = calc2 "input.txt"
-
-
-//
-//printfn "%i" part1
-//printfn "%i" part2
-
-
