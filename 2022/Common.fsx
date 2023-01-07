@@ -77,3 +77,78 @@ module Regexp =
         match input with
         |Regex pattern groups -> groups
         |_ -> failwithf "Match %s failed on %s " pattern input
+
+
+
+module Parser = 
+    type ParseState = { String : string; Index : int }
+    type ParseResult<'t> = |Success of ParseState*'t |Failure of string
+    type Parser<'t> = ParseState -> ParseResult<'t>
+    let run<'t> src p : ParseResult<'t> = p { String = src; Index = 0 }
+    let runOrFail<'t> src p = run<'t> src p |> function |Success (_,v) -> v |Failure (err) -> failwithf "Error parsing %s" err 
+    let current s = s.String[s.Index]
+    let current_str s = sprintf "%c" s.String[s.Index]
+    let err_expect str got = Failure (sprintf "Expected %s, got %s" str got)
+    let ok_adv s v = Success ({ s with Index = s.Index + 1 },v)
+    let is_eos = (fun s -> s.Index >= s.String.Length)
+    let eos = (fun s -> if is_eos s then (Success (s, ())) else err_expect "<eos>" (current_str s))
+    let any = (fun s -> if is_eos s then err_expect "<any>" "<eos>" else ok_adv s (current s))
+    let many' (p:int -> Parser<'t>) (i:ParseState) =
+        let mutable current_state = i
+        let mutable ok = true
+        let mutable n = 0
+        [|
+            while ok do
+                match p n current_state with 
+                |Failure _ -> ok <- false
+                |Success (s,v) -> n <- n + 1
+                                  current_state <- s
+                                  yield v
+        |]
+        |> (fun v -> Success (current_state, v))
+    let many (p:Parser<'t>) = many' (fun _ -> p)
+    let many1 (p:Parser<'t>) = 
+        (fun s -> 
+            let news = many' (fun _ -> p) s
+            news
+            |> function 
+                |Success (s,v) -> 
+                    if v.Length = 0 then Failure "Expeceted at el least one, got zero"
+                    else Success (s,v) 
+                |Failure str -> Failure str
+        )
+    let satisfy fn : Parser<char> = 
+        (fun s -> 
+            if is_eos s then 
+                Failure "End of stream"
+            else
+                let v = s.String[s.Index]
+                if fn v then Success ({s with Index = s.Index + 1 }, v)
+                else Failure "Invalid char"
+        )
+    let map<'a,'b> (fn:'a -> 'b) (p:Parser<'a>) : Parser<'b> = 
+        (fun s -> p s |> function |Success (s,v) -> Success (s, (fn v)) |Failure f -> Failure f)
+    let bind (fn:'a -> Parser<'b>) p : Parser<'b> = 
+            (fun s -> p s |> function |Success (s,v) -> fn v s |Failure f -> Failure f)
+    let nString = 
+        many1 (satisfy (fun x -> System.Char.IsNumber x)) 
+        |> map (fun (x:char array) -> System.String(x))
+    let int32 = nString |> map (fun x -> System.Int32.Parse x)
+    let char c = satisfy ((=)c)
+    let pipe2 a b = a |> bind (fun a ->  b |> map (fun b -> a,b))
+    let pipe3 a b c = pipe2 a b |> bind (fun (a,b) -> c |> map (fun (c) -> a,b,c))
+    let sepby<'a,'b> (separator:Parser<'a>) (p:Parser<'b>) = 
+        
+        many' (function 0 -> p |_ -> pipe2 separator p |> map (fun (a:'a,b:'b) -> b))
+    let choice (p:Parser<'a> seq) : Parser<'a> = 
+        (fun s -> 
+            p 
+            |> Seq.tryPick (fun x -> x s |> function |Failure _ -> None |Success (s,v) -> Some (Success (s,v)))
+            |> function Some s -> s |None -> Failure "")
+            
+    let choice2 (p:Parser<'a>) (p2:Parser<'a>) : Parser<'a> = choice [p;p2]
+    let choice3 p p2 p3 : Parser<'a> = choice [p;p2;p3]
+
+    let forwardedToRef<'a> () = 
+        let p : Parser<'a> ref = ref (fun s -> failwithf "Reference not set")
+        (fun s -> p.Value s), p
