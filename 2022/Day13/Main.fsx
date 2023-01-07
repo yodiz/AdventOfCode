@@ -10,12 +10,7 @@ open AoC
 let folder = __SOURCE_DIRECTORY__ + "\\"
 
 type Signal = |Value of int |Values of Signal list
-type Packet = { Signals : Signal list }
 
-type Sig = {
-    Level : Signal
-    C : char list
-}
 let signalParser = 
     let signal, signalRef = Parser.forwardedToRef<Signal> ()
     let things = 
@@ -67,14 +62,25 @@ let run filename =
     |> snd
 
 
+let run2 filename =     
+    let keya = Signal.Values [Signal.Value 2]
+    let keyb = Signal.Values [Signal.Value 6]
+    let sorted = 
+        load filename
+        |> Array.collect (fun (a,b) -> [|a;b|])
+        |> Array.append [| keya;keyb |]
+        |> Array.sortWith (fun a b -> match cmpOne a b with |None -> failwithf "" |Some true -> 1 |Some false -> -1)
+        |> Array.rev
+        //|> Array.sort
+    
+    let a = sorted |> Array.findIndex ((=)keya) 
+    let b = sorted |> Array.findIndex ((=)keyb) 
+    (a+1) * (b+1)
 
 let test1 = run "test1.txt"
-
+let test2 = run2 "test1.txt"
 let part1 = run "input.txt"
+let part2 = run2 "input.txt"
 
-let part2 = 0
-
-
-//
 printfn "%i" part1
 printfn "%i" part2
