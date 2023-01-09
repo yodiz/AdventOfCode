@@ -64,6 +64,23 @@ module Text =
     let trim (s:string) = s.Trim()
     let trimc (c:char array) (s:string) = s.Trim(c)
 
+module Perf = 
+    let time name arg fn = 
+        let sw = System.Diagnostics.Stopwatch.StartNew()
+        let () = fn arg
+        sw.Stop()
+        printfn "[Perf]: '%s' in %ims" name sw.ElapsedMilliseconds
+        
+    let timen n name arg fn = 
+        let sw = System.Diagnostics.Stopwatch.StartNew()
+        [|0..n-1|] 
+        |> Array.iter (fun _ -> fn arg)
+        sw.Stop()
+        printfn "[Perf]: '%s' %i times in %ims" name n sw.ElapsedMilliseconds
+        ()
+
+
+
 module Regexp = 
     open System.Text.RegularExpressions
 
@@ -82,17 +99,34 @@ module Regexp =
 
 module Parser = 
     type ParseState = { String : string; Index : int }
-    type ParseResult<'t> = |Success of ParseState*'t |Failure of string
+    type ParseError = {
+        State: ParseState
+        ExpectedError : string
+    }
+    let parseError s exp = { State = s; ExpectedError = exp }
+    type ParseResult<'t> = |Success of ParseState*'t |Failure of ParseError
     type Parser<'t> = ParseState -> ParseResult<'t>
     let run<'t> src p : ParseResult<'t> = p { String = src; Index = 0 }
-    let runOrFail<'t> src p = run<'t> src p |> function |Success (_,v) -> v |Failure (err) -> failwithf "Error parsing %s" err 
+    let current_str s = 
+        //Expected: <Int32> at line xx column yy
+        //...part of parsed source...
+        //           ^
+        let partString = s.String[s.Index..(s.Index+40)]
+        let partString = if partString.Length < 40 then (partString) else partString + "..."
+        if s.Index = 0 then partString else "..."+partString
+    let runOrFail<'t> src p = 
+        run<'t> src p 
+        |> function |Success (_,v) -> v 
+                    |Failure (err) ->
+                        let got = current_str err.State
+                        failwithf "Expected %s got %s" err.ExpectedError got
     let current s = s.String[s.Index]
-    let current_str s = sprintf "%c" s.String[s.Index]
-    let err_expect str got = Failure (sprintf "Expected %s, got %s" str got)
+    let err_expect expected s = parseError s expected |> Failure
+        //Failure (sprintf "Expected %s, got %s" str got)
     let ok_adv s v = Success ({ s with Index = s.Index + 1 },v)
     let is_eos = (fun s -> s.Index >= s.String.Length)
-    let eos = (fun s -> if is_eos s then (Success (s, ())) else err_expect "<eos>" (current_str s))
-    let any = (fun s -> if is_eos s then err_expect "<any>" "<eos>" else ok_adv s (current s))
+    let eos = (fun s -> if is_eos s then (Success (s, ())) else err_expect "<eos>" s)
+    let any = (fun s -> if is_eos s then err_expect "<any>" s else ok_adv s (current s))
     let many' (p:int -> Parser<'t>) (i:ParseState) =
         let mutable current_state = i
         let mutable ok = true
@@ -107,44 +141,57 @@ module Parser =
         |]
         |> (fun v -> Success (current_state, v))
     let many (p:Parser<'t>) = many' (fun _ -> p)
-    let many1 (p:Parser<'t>) = 
+    let many1' (p:int -> Parser<'t>) = 
         (fun s -> 
-            let news = many' (fun _ -> p) s
+            let news = many' (fun x -> p x) s
             news
             |> function 
                 |Success (s,v) -> 
-                    if v.Length = 0 then Failure "Expeceted at el least one, got zero"
+                    if v.Length = 0 then err_expect "Expeceted at least one, got zero" s
                     else Success (s,v) 
                 |Failure str -> Failure str
         )
+    let many1 (p:Parser<'t>) = many1' (fun _ -> p)
     let satisfy fn : Parser<char> = 
         (fun s -> 
             if is_eos s then 
-                Failure "End of stream"
+                err_expect "<satisfy c>" s
             else
                 let v = s.String[s.Index]
                 if fn v then Success ({s with Index = s.Index + 1 }, v)
-                else Failure "Invalid char"
+                else err_expect "<satisfy c>" s
         )
     let map<'a,'b> (fn:'a -> 'b) (p:Parser<'a>) : Parser<'b> = 
         (fun s -> p s |> function |Success (s,v) -> Success (s, (fn v)) |Failure f -> Failure f)
     let bind (fn:'a -> Parser<'b>) p : Parser<'b> = 
             (fun s -> p s |> function |Success (s,v) -> fn v s |Failure f -> Failure f)
     let nString = 
-        many1 (satisfy (fun x -> System.Char.IsNumber x)) 
+        many1' ((fun i -> satisfy (fun x -> System.Char.IsNumber x || (i = 0 && (x = '-' || x = '+')))))
         |> map (fun (x:char array) -> System.String(x))
-    let int32 = nString |> map (fun x -> System.Int32.Parse x)
-    let char c = satisfy ((=)c)
+    let string (str:string) : Parser<string> = 
+        (fun s -> 
+            if s.String.Length >= s.Index + str.Length then
+                let got = s.String.Substring(s.Index, str.Length)
+                if str.Equals(got) then
+                    ParseResult.Success ({ s with Index = s.Index + str.Length }, str)
+                else
+                    err_expect ("\"" + str + "\"") s
+            else
+                err_expect ("\"" + str + "\"") s
+        )
+    let explain<'a> experror (p:Parser<'a>) = 
+        (fun s -> p s |> function Success (s,v) -> Success (s,v) |Failure f -> Failure { f with ExpectedError = experror })
+    let int32 = nString |> map (fun x -> System.Int32.Parse x) |> explain "<int32>"
+    let char c = satisfy ((=)c) |> explain (sprintf "'%c'" c)
     let pipe2 a b = a |> bind (fun a ->  b |> map (fun b -> a,b))
     let pipe3 a b c = pipe2 a b |> bind (fun (a,b) -> c |> map (fun (c) -> a,b,c))
     let sepby<'a,'b> (separator:Parser<'a>) (p:Parser<'b>) = 
-        
         many' (function 0 -> p |_ -> pipe2 separator p |> map (fun (a:'a,b:'b) -> b))
     let choice (p:Parser<'a> seq) : Parser<'a> = 
         (fun s -> 
             p 
             |> Seq.tryPick (fun x -> x s |> function |Failure _ -> None |Success (s,v) -> Some (Success (s,v)))
-            |> function Some s -> s |None -> Failure "")
+            |> function Some s -> s |None -> err_expect "<choice of xxx>" s)
             
     let choice2 (p:Parser<'a>) (p2:Parser<'a>) : Parser<'a> = choice [p;p2]
     let choice3 p p2 p3 : Parser<'a> = choice [p;p2;p3]
@@ -152,3 +199,7 @@ module Parser =
     let forwardedToRef<'a> () = 
         let p : Parser<'a> ref = ref (fun s -> failwithf "Reference not set")
         (fun s -> p.Value s), p
+
+    let (>>.) a b = pipe2 a b |> map (fun (a,b) -> b)
+    let (.>>) a b = pipe2 a b |> map (fun (a,b) -> a)
+    let (.>>.) a b = pipe2 a b |> map (fun (a,b) -> a,b)
