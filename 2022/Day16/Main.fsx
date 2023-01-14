@@ -40,20 +40,14 @@ let run filename  =
     let mutable calculated = Map.empty
     //Optimering, memoizeringen returnerar värden för x steg fram. Då 
     let mutable solutions = 0
-
-    let rec follow (ways:Map<string,Way>) (action:Action) timeLeft (location:Way) =
+    let rec follow (ways:Map<string,Way>) (action:Action) timeLeft (location:Way) (sinceLastOpen) =
         match calculated |> Map.tryFind (ways, action, timeLeft, location) with
-        |Some x -> 
-            //printfn "Hit cache to '%s' @  time left %i = %i" location.Id timeLeft x
-            x
+        |Some x -> x
         |None ->
             let v = 
                 let isAllOpen = ways |> Map.fold (fun s x v -> s && (v.IsOpen || v.Pressure = 0)) true
                 let rpress = ways |> Map.fold (fun s x v -> s + if v.IsOpen then v.Pressure else 0) 0 
                 if isAllOpen then
-                    //printfn "all open after %i " timeLeft
-                    //[|0..30-1|]
-                    //|> Array.map (fun t -> )
                     rpress * timeLeft
                 else
                     //printfn "Walking to '%s' @  time left %i, released %i" location.Id timeLeft rpress
@@ -61,42 +55,46 @@ let run filename  =
                         if solutions % 1000 = 0 then
                             printfn "Found %i solutions" solutions
                         solutions <- solutions + 1
-                        //Return array with pressuare for every 30 time left
-                        //[]
                         rpress
                     else
                         match action with 
                         |Walk -> 
                             location.Targets
-                            |> Array.map (fun t -> ways |> Map.find t)
-                            |> Array.collect 
+                            |> Seq.map (fun t -> ways |> Map.find t)
+                            |> Seq.collect 
                                 (fun t -> 
-                                    [|
+                                    [
                                         if not t.IsOpen && t.Id <> "AA" && t.Pressure > 0 then
-                                            yield follow ways Action.Open (timeLeft-1) t
-                                        yield follow ways Action.Walk (timeLeft-1) t
-                                    |]
+                                            yield follow ways Action.Open (timeLeft-1) (t) Set.empty
+
+                                        if sinceLastOpen |> Set.contains t |> not then
+                                            yield follow ways Action.Walk (timeLeft-1) (t) (sinceLastOpen |> Set.add t)
+                                    ]
                                 )
-                            |> Array.max
+                            |> Seq.fold (fun s x -> max s x) 0
                             |> (fun x -> x + rpress)
                         |Open -> 
                             let newWays = ways |> Map.add location.Id { location with IsOpen = true }
-                            (follow newWays Action.Walk (timeLeft-1) location) + rpress
+                            (follow newWays Action.Walk (timeLeft-1) (location) Set.empty) + rpress
             calculated <- calculated |> Map.add (ways, action, timeLeft, location) v
             v
-    
+    let sw = System.Diagnostics.Stopwatch.StartNew()   
     let r = 
         let ways = load folder filename |> Array.map Parse.parseLine |> Map.ofArray
         let start = ways |> Map.find "AA"
-        follow ways Action.Walk 30 start 
+        follow ways Action.Walk 30 start Set.empty
+    printfn "Found result in %i solutions efter %ims" solutions sw.ElapsedMilliseconds
     r
 
 
 
 //Följa alla vägar och returnera totalt tryck på slutet(?)!
 
-let test1 = run "test1.txt"
+//test ~300ms optimerad
+//Found result in 134 solutions efter 321ms
+//let test1 = run "test1.txt"
 //let part1 = run "input.txt"
+//Found result in 118240 solutions efter 356353ms
 
 let part2 = 0
 
