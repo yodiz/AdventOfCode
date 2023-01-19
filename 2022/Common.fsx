@@ -46,6 +46,16 @@ module Trace =
         fn() 
         trace_off()
 
+let memoize fn = 
+    let m = System.Collections.Generic.Dictionary()
+    (fun k -> 
+        match m.TryGetValue(k) with
+        |true,v -> v
+        |false,_ -> 
+            let v = fn k
+            m[k] <- v
+            v
+    )
 
 module Text = 
     let splitm_noempty (sepBy:string array) (str:string)  =
