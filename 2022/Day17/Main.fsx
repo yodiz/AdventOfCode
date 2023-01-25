@@ -22,7 +22,6 @@ module Vec2D =
     let down = create 0 1
 let vec2D x y = { x = x; y = y }
 
-type Piece = { Shape : Vec2D array; Loc : Vec2D; Index : int }
 
 let shapes =  [|
                 [|0,0; 1,0; 2,0; 3,0|] 
@@ -32,6 +31,7 @@ let shapes =  [|
                 [|0,0; 0,1; 1,0; 1,1|]
               |]
               |> Array.map (fun (p) -> p |> Array.map (fun (x,y) -> vec2D x y))
+type Piece = { Shape : Vec2D array; Loc : Vec2D; Index : int64} with member x.ShapeIndex = int (x.Index%int64 shapes.Length)
 
 let folder = __SOURCE_DIRECTORY__ + "\\"
 
@@ -58,7 +58,8 @@ let printBoard (board:Map<Vec2D, bool>) (piece:Piece) =
 //is two units away from the left wall and its bottom edge is three units above the highest rock 
 //in the room (or the floor, if there isn't one).
 let spawnPiece shapeN (board:Map<Vec2D, bool>) = 
-    let shape = shapes[shapeN%shapes.Length]
+    let shapeNN = int (shapeN % int64 shapes.Length)
+    let shape = shapes[shapeNN]
     let sx = shape |> Array.map (fun p -> p.x) |> Array.min
     let sy = shape |> Array.map (fun p -> p.y) |> Array.max
 
@@ -83,12 +84,32 @@ module Piece =
                 |> function |Some s -> false |_ -> true
                 && x.x >= 0 && x.x <= 6 && x.y <= 0 
             )
-let rec tick (n:int) (stopAt:int) (currentPiece:Piece) (board:Map<Vec2D, bool>) (moves:Vec2D array) = 
-    //printfn "Tick %i, currentPiece %i" n currentPiece.Index
-    if currentPiece.Index >= stopAt then
-        board |> Map.toArray |> Array.map (fun (x,_) -> x.y) |> Array.min
+
+let height (board:Map<Vec2D, bool>) =
+    if board = Map.empty then 0 else
+    board |> Map.toArray |> Array.map (fun (x,_) -> x.y) |> Array.min |> abs |> ((+)1)
+
+let clean limit (board:Map<Vec2D, bool>) =
+    let h = height board
+    board |> Map.fold (fun s key value -> if key.y > 0-h+limit then s else s |> Map.add key value) Map.empty
+    
+
+let outline limit (board:Map<Vec2D, bool>) = 
+    let board = clean limit board
+    let h = height board
+    board |> Map.fold (fun s key value -> s |> Map.add (key |> Vec2D.add (vec2D 0 (h-1))) value) Map.empty
+
+let rec tick heights (dHeight:int64) (dBlocks:int64) (n:int64) (stopAt:int64) (currentPiece:Piece) (board:Map<Vec2D, bool>) (moves:Vec2D array) = 
+    let board = 
+        if currentPiece.Index % 1000L = 0 then
+            if currentPiece.Index % 1000L = 0 then printfn "Index: %i, cleaning board" currentPiece.Index
+            clean 100 board
+        else board
+    if currentPiece.Index + dBlocks >= stopAt then
+        int64 (height board) + dHeight
     else
-        let move = moves[n%moves.Length]
+        let nMove = int (n % int64 (moves.Length))
+        let move = moves[nMove]
         printBoard board currentPiece
         //Movie piece left/right if possible
         let currentPiece = 
@@ -97,18 +118,45 @@ let rec tick (n:int) (stopAt:int) (currentPiece:Piece) (board:Map<Vec2D, bool>) 
             else 
                 currentPiece
         printBoard board currentPiece
-        let nInc, currentPiece, board = 
+        let heights, currentPiece, board, dHeight, dBlocks = 
             if Piece.canMove Vec2D.down board currentPiece then
-                1, { currentPiece with Loc = Vec2D.add currentPiece.Loc Vec2D.down }, board
+                heights, { currentPiece with Loc = Vec2D.add currentPiece.Loc Vec2D.down }, board,dHeight, dBlocks
             else
                 let newBoard = 
                     currentPiece.Shape 
                     |> Array.map (fun p -> Vec2D.add p currentPiece.Loc)
-                    |> Array.fold (fun s x -> s |> Map.add x true) board            
-                let piece = spawnPiece (currentPiece.Index+1) newBoard
-                1, piece, newBoard
+                    |> Array.fold (fun s x -> s |> Map.add x true) board      
+
+                let heights, dHeight, dBlocks = 
+                    //moves.Length*shapes.Length
+                    if currentPiece.Index > int64(moves.Length*shapes.Length) then
+                        let height = height newBoard
+                        let key = currentPiece.ShapeIndex,nMove//,outline nMove newBoard
+                        let info = {| pieceCount = currentPiece.Index;height = height |}
+                        
+                        match heights |> Map.tryFind key with
+                        |Some (h:{|pieceCount:int64;height:int|}) -> 
+                            if dHeight = 0 then
+                                let cyclePieces = info.pieceCount - h.pieceCount
+                                let cycleHeight = info.height - h.height
+                                printfn "Found cycle of %i blocks giving height %i, pieces: %i " cyclePieces cycleHeight currentPiece.Index
+
+                                let cycles = ((stopAt - currentPiece.Index) / cyclePieces)
+                                let addedHeight = int64 cycleHeight * cycles
+                                let addedBlocks = cycles * int64 cyclePieces
+                                printfn "Cycles: %i, addedHeight: %i, addedBlocks: %i" cycles addedHeight addedBlocks
+                                
+                                heights,addedHeight,addedBlocks
+                            else
+                                heights,dHeight,dBlocks
+                        |None -> 
+                            heights |> Map.add key info,dHeight, dBlocks
+                    else heights,dHeight, dBlocks
+                
+                let piece = spawnPiece (currentPiece.Index+1L) newBoard
+                heights, piece, newBoard,dHeight, dBlocks
         printBoard board currentPiece
-        tick (n+nInc) stopAt currentPiece board moves
+        tick heights dHeight dBlocks (n+1L) stopAt currentPiece board moves
 
 
 let run filename stopAt =
@@ -116,19 +164,12 @@ let run filename stopAt =
         loadAll folder filename
         |> Seq.map (function |'<' -> Vec2D.left; |'>' -> Vec2D.right |_ -> failwithf "")
         |> Seq.toArray
-    //printfn "Moves length %i" moves.Length
-    tick 0 stopAt (spawnPiece 0 Map.empty) Map.empty moves
-    |> abs |> ((+)1)
-let test1 = run "test1.txt" 2022 
-//3068
-//let test2 = run "test1.txt" 1000000000000
-
-let part1 = run "input.txt" 2022 
-
-let part2 = 0
+    tick Map.empty 0L 0L 0 stopAt (spawnPiece 0 Map.empty) Map.empty moves
+    
 
 
-//
-printfn "%i" part1
-printfn "%i" part2
+//let test1 = run "test1.txt" 2022 
+let test2 = run "test1.txt" 1000000000000L
 
+//let part1 = run "input.txt" 2022 
+//let part2 = run "input.txt" 1000000000000L
