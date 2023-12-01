@@ -9,6 +9,86 @@ open AoC
 
 let folder = __SOURCE_DIRECTORY__ + "\\"
 
+type Node<'a> = { Id : int; Data : 'a }    
+
+type Vertex<'a> = {
+    Item : 'a
+}
+let vertex i = { Item = i }
+
+type Graph<'a when 'a : comparison> = {
+    Vertices : Vertex<'a> list 
+    Edges : Map<Vertex<'a>, Vertex<'a> list>
+}
+module Graph = 
+    let empty = { Vertices = []; Edges = Map.empty }
+    let addVertex (v) graph  = 
+       { graph with Vertices = v::graph.Vertices }
+    let addEdge from too graph = 
+        { graph with Edges = graph.Edges 
+                             |> Map.add from (too::(graph.Edges |> Map.tryFind from |> Option.defaultValue [])) }
+
+let dijkstra<'a when 'a : comparison> (graph:Graph<'a>) (source:Vertex<'a>) (stopAt:Vertex<'a> option)= 
+    let dist = System.Collections.Generic.Dictionary()
+    let prev = System.Collections.Generic.Dictionary()
+    let mutable Q = Set.empty
+    for v in graph.Vertices do
+        dist[v] <- None // Infinity
+        prev[v] <- None
+        Q <- Q |> Set.add v 
+
+    dist[source] <- Some 0
+
+    while Q |> Set.isEmpty |> not do
+        let u = Q |> Set.toArray |> Array.minBy (fun v -> dist[v] |> Option.defaultValue System.Int32.MaxValue) 
+        Q <- Q |> Set.remove u
+        
+        match stopAt with 
+        |Some stopAt when stopAt = u -> 
+            Q <- Set.empty
+        |_ -> ()
+
+        let neighbors = graph.Edges 
+                        |> Map.tryFind u 
+                        |> Option.defaultValue [] 
+                        |> List.filter (fun x -> Q |> Set.contains x)
+
+        for v in neighbors do
+            match dist[u] with 
+            |None -> ()
+            |Some d -> 
+                let alt = d + 1 //1 is distance, calc ut?
+                if Some alt < dist[v] || dist[v] = None then
+                    dist[v] <- Some alt
+                    prev[v] <- Some u
+            ()
+
+    dist,prev
+
+
+let getGraph (map:byte array array) = 
+    let mutable graph = Graph.empty
+    map
+    |> Array.mapi (fun y yv-> 
+        yv 
+        |> Array.mapi (fun x xv -> 
+            graph <- graph |> Graph.addVertex (vertex (x,y))
+
+            [1,0; -1,0; 0,1; 0,-1]
+            |> List.map (fun (dx,dy) -> 
+                            let xx = x + dx
+                            let yy = y + dy
+                            if xx < 0 || xx >= map[0].Length || yy < 0 || yy >= map.Length then 
+                                ()
+                            elif (map[yy][xx]) <= map[y][x] + 1uy then
+                                graph <- graph |> Graph.addEdge (vertex(x,y)) (vertex (xx,yy))
+                            else ()
+                        )
+     
+        )
+    ) |> ignore
+    graph
+
 
 type State = {
     Map : byte array array
@@ -25,59 +105,48 @@ let load file =
     {Map = load folder file |> Array.mapi parseLine; Start = s; Goal = e}
 
 
-//let canWalk (map:byte array array)  (x,y) (t_x, t_y) = 
-//    if t_x < 0 || t_x >= map[0].Length || t_y < 0 || t_y >= map.Length then false
-//    else
-//        let c = map[y][x]
-//        let t = map[t_y][t_x]
-//        t <= c + 1uy
+let calc filename = 
+    let l = load filename 
+    let g = getGraph l.Map
+    let (dist, path) =  dijkstra g (vertex (l.Start)) (Some (vertex (l.Goal)))
+    dist[(vertex l.Goal)]
+    
+let calc2 filename = 
+    let l = load filename 
+    let g = getGraph l.Map
+    //Reverse edges
+    let e = 
+        g.Edges
+        |> Map.fold (fun s k v -> 
+            v
+            |> List.fold (fun s x -> s |> Map.add x (k :: (s |> Map.tryFind x |> Option.defaultValue []))) s
+        ) Map.empty
+    let g = { g with Edges = e }
+    //calc from goal to all others
+    let (dist, path) =  dijkstra g (vertex (l.Goal)) None
 
-let rec walkNext (dict:System.Collections.Generic.Dictionary<_,_>) (map:byte array array) goal (x,y) fromValue visited gCont =
+    // get dist for all a's and take min
+    let a = l.Map |> Array.mapi (fun y i -> i |> Array.mapi (fun x v -> 
+                                                                let b = v = byte 'a'
+                                                                if b then Some (x,y)
+                                                                else None
+                                                            ))
+            |> Array.collect (fun x -> x |> Array.choose id)
 
-    if visited |> List.contains (x,y) then gCont None
-    elif x < 0 || x >= map[0].Length || y < 0 || y >= map.Length then gCont None
-    elif (map[y][x]) <= fromValue + 1uy then         
-        if (x,y) = goal then
-            printfn "Found goal %A" (visited |> List.rev)
-            gCont (Some (visited |> List.length))
-        else
-            match dict.TryGetValue((x,y)) with
-            |true,x -> x
-            |_ -> 
-                printfn "Walking (%i,%i) from %c to %c" x y (char fromValue) (char (map[y][x]))
-                let tryWalk (t_x,  t_y) cont = 
-                    let newVisisted = (x,y)::visited
-                    walkNext dict map goal (t_x, t_y) (map[y][x]) newVisisted (fun x -> cont x)
-                
+    let xx = 
+        a
+        |> Array.mapi 
+            (fun i (x,y) -> 
+                let d = dist[vertex (x,y)]
+                printfn "Calc %i of %i (%i,%i) = %A" i a.Length x y d
+                d
+            )
+        |> Array.choose id
+        |> Array.min
+    xx
 
-                tryWalk (x,y-1) 
-                    (fun up -> tryWalk (x,y+1) 
-                                (fun down -> tryWalk (x-1,y) 
-                                                (fun left -> tryWalk (x+1,y) 
-                                                                (fun right -> 
-                                                                    let v = match [up;down;left;right] |> List.choose (fun x -> x) with |[] -> None |x -> x |> List.min |> Some
-                                                                    dict.Add((x,y),v)
-                                                                    v 
-                                                                )
-                                                )
-                                )
-                    )
-                    //|> (fun v -> dict.Add((x,y),v); v)
-                    |> gCont
-    else gCont None
+let test1 = AoC.Test.equal "Test1" (Some 31) (calc "test1.txt")
+let test2 = AoC.Test.equal "Test2" 29 (calc2 "test1.txt")
 
-
-let calc input = (walkNext (System.Collections.Generic.Dictionary<_,_>()) input.Map input.Goal input.Start ('a' |> byte) [] (fun x -> x) |> Option.get)
-
-let test1 = AoC.Test.equal "Test1" 31 (calc (load "test1.txt"))
-
-let part1 = calc (load "input.txt")
-
-let part2 = 0
-
-
-//
-//printfn "%i" part1
-//printfn "%i" part2
-
-
+let part1 = calc "input.txt"
+let part2 = calc2 "input.txt"
