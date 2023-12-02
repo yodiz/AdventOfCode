@@ -39,6 +39,11 @@ Test.equal "Test1" 142 (p2 test1)
 let part1 = p1 input
 let part2 = p2 input
 
+
+printfn "Hejsan allaihopa"
+
 //
 printfn "Part1: %i" part1
 printfn "Part2: %i" part2
+
+printfn "Hejsan"
