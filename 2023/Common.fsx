@@ -60,6 +60,12 @@ module Text =
         |[|a;b|] -> a,b
         |a -> failwithf "Expected two elements in '%s' Sep By '%s', but got %A"  string sepBy a
 
+    let split2_noempty sepBy string = 
+        match split_noempty sepBy string with 
+        |[|a;b|] -> a,b
+        |a -> failwithf "Expected two elements in '%s' Sep By '%s', but got %A"  string sepBy a
+
+
     let trim (s:string) = s.Trim()
     let trimc (c:char array) (s:string) = s.Trim(c)
 
