@@ -17,6 +17,8 @@ module Mapper =
     let mappers s (mps:Mapper array) = 
         mps |> Array.tryPick (mapper s) |> Option.defaultValue s
 
+    
+
 let parse (input:string) = 
     let t = input.Split("\r\n\r\n", System.StringSplitOptions.RemoveEmptyEntries)
     let _,seeds = Text.split2 ":" t[0]
@@ -53,9 +55,30 @@ let solve1 input =
         )
     |> Array.min
    
-let solve2 input = 0
+let solve2 input = 
+    let p = parse input    
+    let xx = 
+        p.Seeds
+        |> Array.chunkBySize 2
+        |> Array.map (function [|start;len|] -> [|start..start+len-1L |])
+    xx
+    
 
+    //Man borde kunna få ranges för seeds som blir samma  (Utna för rangearna)
+    //
+
+    // p.Seeds
+    // |> Array.map 
+    //     (fun seed -> 
+    //         p.X
+    //         |> Array.fold (fun s x -> let a = Mapper.mappers s x.Mapper                                        
+    //                                     // printfn "Mapping '%s' %i -> %i" x.Name s a
+    //                                   a) 
+    //                        seed
+    //     )
+    // |> Array.min
+   
 let aTest = solve1 inptest1
 let aTest2 = solve2 inptest1
 let part1 = solve1 input 
-let part2 = solve2 input
+// let part2 = solve2 input
