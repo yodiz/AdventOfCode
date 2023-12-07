@@ -11,7 +11,6 @@ let inptest1  = loadAll folder "test1.txt"
 [<StructuredFormatDisplay("Range({From} to {To} (Len={Length}))")>]
 type Range = { From:int64; Length: int64 } 
     with 
-        ///Range To Exclusive 
         member x.To = x.From + x.Length - 1L
         member x.ToExcl = x.To + 1L
 module Range = 
@@ -45,48 +44,29 @@ module Range =
         else if a < c then [(a, c - 1L)]
         else [(d + 1L, b)]
 
-    // subtractIntervals (0L,10L) (0L,9L)
-    // subtractIntervals (0L,10L) (5L,5L)
-
-
     let Subtract (target:Range) (toSubtract:Range) = 
         subtractIntervals (target.From, target.To) (toSubtract.From, toSubtract.To)
         |> List.filter (fun (f,t) -> f <= t)
         |> List.map (fun (f,t) -> { From = f; Length = t-f+1L })
         |> List.toArray
-Range.fromTo 0 10
-Range.Subtract { From = 0; Length = 10 } { From = 1; Length = 5 }
-Range.Subtract (Range.fromTo 0 10) (Range.fromTo 20 30)
-
-        
-Range.overlap_r { From = -5; Length = 10 } { From = 1; Length = 9 } 
-Range.overlap_r { From = 1; Length = 9 } { From = -5; Length = 10 }          
-
-Range.overlap_r { From = 1; Length = 9 } { From = -5; Length = 7 }
-// Mapper.overlap_r { From = 1; Length = 9 } { From = 3; Length = 2 }
 
 
 type Mapper = { Dest : int64; Source : Range }
 module Mapper = 
+    ///For a Range, apply mapper and return 
+    /// new ranges and indicate if they have remapped or not with bool
     let mapper2 (r:Range) (mps:Mapper) : (bool*Range) array = 
         match Range.overlap_r r mps.Source with
-        |None -> [|false,r|] //Om range är utanför mappern - en range ut
+        |None -> [|false,r|] 
         |Some (before,hit,after) -> 
-            //Den överlappande ska transformeras
-            //Vi måste filtrera bort mapper rangar 
             let before = Range.Subtract before mps.Source
             let after = Range.Subtract after mps.Source
-        
             let delta = mps.Source.From - mps.Dest
 
-            printfn "Remap from: %A to %i (%i)" hit mps.Dest hit.Length
-
-            let b = [| false,before; true,[|{ hit with From = hit.From - delta }|] ; false,after |]
-            let a = 
-                b
-                |> Array.collect (fun (b,r) -> r |> Array.map (fun x -> b,x))
-            a
-
+            [| false,before; true,[|{ hit with From = hit.From - delta }|] ; false,after |]
+            |> Array.collect (fun (b,r) -> r |> Array.map (fun x -> b,x))
+    ///Apply mapper one by one to unmapped-ranges
+    /// Return ranges and indicate if they have been mapped or not
     let rec mappers3 (r:(bool*Range) array) (mps:Mapper array) = 
         match mps with 
         |[||] -> r
@@ -100,28 +80,10 @@ module Mapper =
                             mapper2 r a[0]
                     )
             mappers3 newRanges a[1..]
+    ///Apply mappers one by one to range and return new ranges that have been mapped
     let mappers2 range mappers = 
         mappers3 [|false,range|] mappers
         |> Array.map snd
-
-        // mps 
-        // |> Array.collect (mapper2 r) 
-        // |> Array.distinct
-
-Mapper.mappers2 { From = 0; Length = 10 } [| { Dest = 20; Source = { From = 0; Length = 5 } }  |]
-
-Mapper.mapper2 (Range.fromLen 79 14) { Dest = 52; Source = Range.fromLen 50 48 }
-Mapper.mapper2 (Range.fromLen 79 14) { Dest = 50; Source = Range.fromLen 98 2 }
-
-
-Mapper.mappers2 (Range.fromLen 79 14) 
-    [|
-        { Dest = 50; Source = Range.fromLen 98 2 }
-        { Dest = 52; Source = Range.fromLen 50 48 }
-    |]
-// 50 98 2
-// 52 50 48
-// Ska bli 81-95
 
 let parse (input:string) = 
     let t = input.Split("\r\n\r\n", System.StringSplitOptions.RemoveEmptyEntries)
@@ -140,13 +102,8 @@ let parse (input:string) =
 
                 {| Index = i; Name = name; Mapper = p |}
             )
-
-    {|
-        Seeds = seeds
-        X = maps
-    |}
+    {| Seeds = seeds; X = maps |}
    
-let a = 9
 let solve2 input = 
     let p = parse input    
     p.Seeds
@@ -157,24 +114,14 @@ let solve2 input =
             p.X
             |> Array.fold 
                 (fun seeds x -> 
-                    //För varje range - mappa till nya ranges
-                    printfn "%s - %A" x.Name seeds
-                    //Dest Src Len
-                    //50 98 2
-                    // Ska bli 81-94
-
-                    let a = seeds |> Array.collect (fun r -> Mapper.mappers2 r x.Mapper)
-                    a |> Array.iter (fun r -> printfn "  %A" r)
-                    a
+                    seeds |> Array.collect (fun r -> Mapper.mappers2 r x.Mapper)
                 ) 
                 [|seed|]
         )
     |> Array.collect (fun x -> x)
     |> Array.map (fun x -> x.From)
     |> Array.min
-    
 
 let aTest2 = solve2 inptest1
-// Test.equal "Test2" 46L (solve2 inptest1)
-
-let part2 = solve2 input
+Test.equal "Test2" 46L (solve2 inptest1)
+let part2 = (Time.func solve2) input

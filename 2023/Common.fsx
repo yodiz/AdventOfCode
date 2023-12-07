@@ -22,6 +22,13 @@ module List =
     let foldi<'state,'a> folder (s:'state) (arr:'a list) =
         arr|> List.fold (fun (i,s) x -> (i+1),folder i s x) (0,s) |> snd
 
+module Time = 
+    let func fn a = 
+        let sw = System.Diagnostics.Stopwatch.StartNew()
+        let r = fn a
+        sw.Stop()
+        printfn "Timing Function, took %ims" sw.ElapsedMilliseconds
+        r
 
 module Map = 
     ///Change existing value or use default value 
