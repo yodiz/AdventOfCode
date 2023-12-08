@@ -52,35 +52,62 @@ let parse (s:string) =
     input.ToCharArray(), nodes
 
 
-let rec walk (i:int) (input:char array) (node:Node) = 
+let rec walk isDone (i:int) (input:char array) (node:Node array) = 
     // if i > input.Length * 2 then failwithf "Input length %i" input.Length
-    if node.Value = "ZZZ" then i
+    if isDone i node then i
     else
         let d = input[i % input.Length]
-        let nextNode = 
-            match d with 
-            |'L' -> node.WalkLeft.Value
-            |'R' -> node.WalkRight.Value
+        let nextNode (node:Node) = match d with |'L' -> node.WalkLeft.Value |'R' -> node.WalkRight.Value
         // if i % 100000000 = 0 then                       
         // printfn "%i(%i) %s - Walking %c" i (i % input.Length) node.Value d
-        walk (i+1) input nextNode
-
+        walk isDone (i+1) input (node |> Array.map nextNode)
+        
 let solve1 input = 
     let inp, nodes = parse input
     let start = nodes |> Array.find (fun x -> x.Value.Value = "AAA")
-    walk 0 inp start.Value
+    walk (fun _ x -> x[0].Value = "ZZZ") 0 inp [|start.Value|]
+
+let rec gcd a b = 
+    if b = 0L then a else gcd b (a % b)
+
+let lcd a b = 
+    if a = 0L || b = 0L then 0L else abs (a * b) / (gcd a b)
+
+let lcm a b =
+    abs (a * b) / gcd a b
+
+let lcm_array (arr:int64 array) =
+    Array.fold lcm arr[0] arr[1..]
 
 let solve2 input = 
     let inp, nodes = parse input
-    let start = nodes |> Array.filter (fun x -> x.Value.Value.EndsWith("A"))
-
-    
-    walk 0 inp start.Value
+    let start = nodes |> Array.filter (fun x -> x.Value.Value.EndsWith("A")) |> Array.map (fun x -> x.Value)
+    let arr = Array.init start.Length (fun _ -> 0)
+    walk 
+        (fun i x -> 
+            x |> Array.iteri (fun n x -> 
+                                if x.Value.EndsWith("Z") then 
+                                    if arr[n] = 0 then
+                                        arr[n] <- i
+                                    // printfn "%i ends with Z @ %i" n i 
+                                else ())
+            x |> Array.forall (fun x -> arr |> Array.forall (fun x -> x > 0))
+        ) 
+        0 inp (start)
+    |> ignore
+    printfn "%A" arr
+    arr |> Array.map int64 |> lcm_array
 
 Test.equal "Test1" 2 (solve1 inptest1)
-Test.equal "Test2" 6 (solve1 inptest2)
+// Test.equal "Test2" 6 (solve1 inptest2)
 let aTest = solve1 inptest1
-let aTest2 = solve1 inptest2
+let aTest2 = solve2 inptest2
 
 let part1 = solve1 input 
-// let part2 = solve2 input
+let part2 = solve2 input
+
+
+// 834160
+// 834160
+
+// 11567+11567+11567=23134
