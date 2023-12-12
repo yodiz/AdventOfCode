@@ -89,3 +89,9 @@ module Regexp =
         match input with
         |Regex pattern groups -> groups
         |_ -> failwithf "Match %s failed on %s " pattern input
+
+type Pos = {x: int;y:int}
+module Pos = 
+    let create x y = { x = x; y = y }
+    let sub (a:Pos) (b:Pos) = { x = a.x - b.x; y = a.y - b.y }
+    let add (a:Pos) (b:Pos) = { x = a.x + b.x; y = a.y + b.y }
