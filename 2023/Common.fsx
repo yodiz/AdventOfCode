@@ -90,7 +90,7 @@ module Regexp =
         |Regex pattern groups -> groups
         |_ -> failwithf "Match %s failed on %s " pattern input
 
-type Pos = {x: int;y:int}
+type Pos = {x: int64;y:int64}
 module Pos = 
     let create x y = { x = x; y = y }
     let sub (a:Pos) (b:Pos) = { x = a.x - b.x; y = a.y - b.y }

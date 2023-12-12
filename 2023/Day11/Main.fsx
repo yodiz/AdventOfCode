@@ -9,16 +9,17 @@ let input  = load folder "input.txt"
 let inptest1  = load folder "test1.txt"
 let inptest2  = load folder "test2.txt"
 
+open Microsoft.FSharp.Core.Operators.Checked
 
 let parse y (line:string) = 
     line.ToCharArray()
     |> Array.mapi (fun x c -> match c with |'#' -> Some (Pos.create x y) |_ -> None )
     |> Array.choose id
 
-let solve1 input =
+let solve expand input =
     let galaxy = 
         input 
-        |> Array.mapi parse
+        |> Array.mapi (fun y x -> parse y x)
         |> Array.collect id
         |> Set.ofArray
     let width, height = 
@@ -26,14 +27,14 @@ let solve1 input =
 
     //För varje kolumn, kolla igenom raderna och se om kolumen är tom. Spara ner en lita med tomma kolumner
     let emptyCols = 
-        [0..width]
-        |> List.map (fun x -> [0..height] |> List.forall (fun y -> galaxy |> Set.contains (Pos.create x y) |> not))
+        [0L..width]
+        |> List.map (fun x -> [0L..height] |> List.forall (fun y -> galaxy |> Set.contains (Pos.create x y) |> not))
         |> List.mapi (fun i x -> if x then Some i else None)
         |> List.choose id
 
     let emptyRows = 
-        [0..height]
-        |> List.map (fun y -> [0..width] |> List.forall (fun x -> galaxy |> Set.contains (Pos.create x y) |> not))
+        [0L..height]
+        |> List.map (fun y -> [0L..width] |> List.forall (fun x -> galaxy |> Set.contains (Pos.create x y) |> not))
         |> List.mapi (fun i x -> if x then Some i else None)
         |> List.choose id
 
@@ -43,16 +44,16 @@ let solve1 input =
         galaxy
         |> Set.map 
             (fun p -> 
-                let inc = emptyCols |> List.filter (fun x -> x < p.x) |> List.length
-                { p with x = p.x + inc }
+                let inc = emptyCols |> List.filter (fun x -> int64 x < p.x) |> List.length |> int64
+                // printfn "Moving x %i to %i (%i)" p.x (p.x + inc * expand) inc
+                { p with x = p.x + inc * expand }
             )
         |> Set.map 
             (fun p -> 
-                let inc = emptyRows |> List.filter (fun y -> y < p.y) |> List.length
-                { p with y = p.y + inc }
+                let inc = emptyRows |> List.filter (fun y -> int64 y < p.y) |> List.length |> int64
+                { p with y = p.y + inc * expand }
             )
 
-    
     let a = galaxyExpanded |> Set.toArray
     let pairs = 
         Array.allPairs a a
@@ -62,15 +63,13 @@ let solve1 input =
 
     let dist (a:Pos) (b:Pos) = abs(a.x - b.x) + abs(a.y - b.y)
 
-    pairs |> Array.map (fun (a,b) -> dist a b)
+    let ps = pairs |> Array.map (fun (a,b) -> dist a b)
+    ps
     |> Array.sum
 
 
-
-
-let solve2 input = 
-    0
-
-let aTest = solve1 inptest1
-
-let part1 = solve1 input
+let aTest = solve 1L inptest1
+let aTest2 = solve 9 inptest1
+let aTest3 = solve 99 inptest1
+let part1 = solve 1L input
+let part2 = solve 999999 input
