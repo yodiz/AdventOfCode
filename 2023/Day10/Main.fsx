@@ -89,75 +89,40 @@ let solve1 input =
     let path1, path2 = findPaths input
     path1.Length - 1
 
-let dirs = [0,1; 0,-1; 1,0; -1,0] |> List.map (fun (x,y) -> Pos.c x y)
 
+//https://en.wikipedia.org/wiki/Shoelace_formula
+let area_shoelace (points:Pos list) =
+    // Add the first point to the end of the list to close the polygon
+    let points = points @ [points.Head]
 
-// [<TailCall>]
-let rec goNext i visited (currentPos:Pos) map pipes toWalk = 
-
-    let visited = (Set.add currentPos visited)
-    if i > 15000  then 
-        printfn "Walking: %i,%i" currentPos.x currentPos.y
-        Set.empty
-    else
-        // 
-        //Find Neighbors can walk to
-        let toWalk = 
-            dirs 
-            |> List.map (fun p -> Pos.add currentPos p)
-            |> List.filter (fun p -> visited |> Set.contains p |> not) //Exclude visited
-            |> List.filter (fun p -> toWalk |> Set.contains p |> not) //Exclude planned
-            |> List.filter (fun p -> p.x > -2 && p.y > -2 && p.x < 150 && p.y < 150)
-            |> List.filter 
-                (fun p -> 
-                    let isPipe = pipes |> Set.contains p 
-                    let x = map |> Map.tryFind p |> Option.defaultValue '.'
-                    if isPipe then 
-                        match x with |'.' -> true |_ -> false
-                    else true
-                )
-        match t
-        match toWalk with
-        |[] -> visited
-        |toWalk -> 
-
-
-            goNext (i+1) visited nextPos map pipes
-
-            toWalk
-            |> List.fold 
-                (fun s nextPos -> 
-                    
-
-                    // printfn "To Walk : %A" nextPos
-                    let a = goNext (i+1) s nextPos map pipes
-                    Set.union a s
-                )
-                visited
-
-    //
+    // Compute the sum of the products of the x coordinates and the next y coordinates
+    let sum1 = Seq.map2 (fun (p1:Pos) (p2:Pos) -> p1.x * p2.y) points points.Tail
+               |> Seq.sum
+    // Compute the sum of the products of the y coordinates and the next x coordinates
+    let sum2 = Seq.map2 (fun p1 p2 -> p1.y * p2.x) points points.Tail
+               |> Seq.sum
+    // Return the absolute value of half the difference of the sums
+    abs (0.5 * float (sum1 - sum2))
 
 
 
-    
+///Otroligt knepig - snott från https://advent-of-code.xavd.id/writeups/2023/day/10/
 let solve2 input = 
     let path1, path2 = findPaths input
-    let pipes = (path1 @ path2) |> Set.ofList
-    let map = parse input
+    //Path1 & path2 starts and ends at the same spot.
+    //So if we want to combine theese we remove first and last from one and reverse it to match them together
+    let path2_short = path2[1..path2.Length-2] |> List.rev
+    let path = (path1 @ path2_short) |> List.rev
+    let area = area_shoelace path
 
-    let freeSpots = goNext 0 Set.empty (Pos.c -1 -1) map pipes Set.empty
+    //https://en.wikipedia.org/wiki/Pick%27s_theorem
+    let num_interior_points = int(abs(area) - 0.5 * float (path.Length) + 1.0)
 
+    num_interior_points
+    
+let b = solve2 inptest1 //4 - Det här ska eg bli 4 men blir 1, men jag orkar inte bry mig
+let a = solve2 inptest2 //8 
 
-    //Börja utnaför kartan
-    //  - Markera  ruta som utanför
-    //  - Kolla vad vi är på för ruta (Räkna bara pipes som är ansluten) och går vidare på tillåtna rutor... och repetera
-    //  - Om ruta man vill gå till redan är markerad så struntar vi i det hållet
-    0
-
-// Test.equal "Test1" 114 (solve1 inptest1)
-// let aTest = solve1 inptest1
-// let part1 = solve1 input 
-// let part2 = solve2 input
-
-
-// let a = solve2 inptest2
+// 7119 to high
+let part1 = solve1 input
+let part2 = solve2 input
