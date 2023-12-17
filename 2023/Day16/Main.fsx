@@ -66,28 +66,54 @@ let rec tickBeams (map:Pos.Map) preEnergized toProcess (beam:Beam) =
                 tickBeams map energized toProcess { beam with Pos = nextPos; Dir = dir }             
             |c -> failwithf "WTF? %c" c
 
+
+let getEnergized map beam = 
+    let energized = tickBeams map Set.empty [] beam
+    let energized = energized |> Set.map (fun x -> x.Pos) 
+    let emap = energized |> Set.fold (fun s x -> s |> Map.add (x) '#') map.Map
+    // Pos.Map.print { map with Map = emap }
+    (energized |> Set.count) - 1 
             
 
 let solve1 input = 
     let map = Pos.Map.parse '.' input
     let beam = { Pos = Pos.create -1 0; Dir = Pos.Dir.East }
-    //Shine beam, - direction and position
-    // Pos.Map.print map
-
-    let energized = tickBeams map Set.empty [] beam
-
-    let energized = energized |> Set.map (fun x -> x.Pos) 
-    
-    let emap = energized |> Set.fold (fun s x -> s |> Map.add (x) '#') map.Map
-
-    Pos.Map.print { map with Map = emap }
-    
-    (energized |> Set.count) - 1 
+    getEnergized map beam
 
 let solve2 input =  
-    0    
+    //För varje  edge, räkna ut max energized 
+
+    let map = Pos.Map.parse '.' input
+    
+    let topBottom = 
+        Array.init map.Width (fun x -> x)
+        |> Array.map 
+            (fun x -> 
+                [|
+                    { Pos = Pos.create x -1; Dir = Pos.Dir.South }
+                    { Pos = Pos.create x map.Height; Dir = Pos.Dir.North }
+                |]
+            )
+    let leftRight = 
+        Array.init map.Height (fun x -> x)
+        |> Array.map 
+            (fun y -> 
+                [|
+                    { Pos = Pos.create -1 y; Dir = Pos.Dir.East }
+                    { Pos = Pos.create map.Width y; Dir = Pos.Dir.West }
+                |]
+            )
+
+    let beams = 
+        topBottom 
+        |> Array.append leftRight
+        |> Array.collect id
+
+    beams 
+    |> Array.fold (fun s beam -> max s (getEnergized map beam)) 0
+
 
 let test1 = solve1 inptest1 
-// let test2 = solve2 inptest1
+let test2 = solve2 inptest1 // 51
 let part1 = solve1 input
-// let part2 = solve2 input 
+let part2 = solve2 input 
