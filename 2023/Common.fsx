@@ -1,6 +1,7 @@
 ﻿[<AutoOpen>]
 module AoC
 
+let folder = __SOURCE_DIRECTORY__
 let load folder file = System.IO.File.ReadAllLines(System.IO.Path.Combine(folder,file))
 let loadAll folder file = System.IO.File.ReadAllText(System.IO.Path.Combine(folder,file))
 
@@ -95,3 +96,27 @@ module Pos =
     let create x y = { x = x; y = y }
     let sub (a:Pos) (b:Pos) = { x = a.x - b.x; y = a.y - b.y }
     let add (a:Pos) (b:Pos) = { x = a.x + b.x; y = a.y + b.y }
+
+    module Dir = 
+        let North = create 0 -1
+        let South = create 0 1
+        let West = create -1 0
+        let East = create 1 0
+
+    type Map = { Width : int; Height : int; Map : Map<Pos, char> }
+    module Map = 
+        let parse empty (input:string array) = 
+            let map = 
+                input 
+                |> Array.mapi (fun y l -> l.ToCharArray() |> Array.mapi (fun x c -> match c with |q when q = empty -> None |c -> Some ((create x y), c)))
+                |> Array.collect id
+                |> Array.choose id
+                |> Map.ofArray
+            { Width = input[0].Length; Height = input.Length; Map = map }
+        let print (map:Map) = 
+            for y = 0 to map.Height - 1 do
+                for x = 0 to map.Width - 1 do
+                    let q = map.Map |> Map.tryFind (create x y) |> Option.defaultValue '.'
+                    printf "%c" q
+                printfn ""
+    
