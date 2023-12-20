@@ -119,4 +119,7 @@ module Pos =
                     let q = map.Map |> Map.tryFind (create x y) |> Option.defaultValue '.'
                     printf "%c" q
                 printfn ""
-    
+        
+        let rotate (map:Map) = 
+            let m = map.Map |> Map.toList |> List.map (fun (k, p) -> create k.y k.x, p) |> Map.ofList
+            { map with Map = m; Width = map.Height; Height = map.Width }
